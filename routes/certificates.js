@@ -1,5 +1,6 @@
 import express from 'express';
 import Certificate from '../models/Certificate.js';
+import User from '../models/User.js';
 import { authenticate } from '../middleware/auth.js';
 import upload from '../middleware/upload.js';
 import path from 'path';
@@ -50,6 +51,25 @@ router.get('/my-certificates', authenticate, async (req, res) => {
     const certificates = await Certificate.find({ userId: req.user._id })
       .sort({ createdAt: -1 }) // Sort by newest first
       .select('-filePath'); // Don't send file path in response
+
+    // Calculate and update reward points based on verified certificates
+    const verifiedCount = certificates.filter((cert) => cert.status === 'verified').length;
+    const expectedPoints = verifiedCount * 100;
+    
+    // Update user's reward points if they don't match
+    const user = await User.findById(req.user._id);
+    if (user) {
+      // Ensure rewardPoints field exists
+      if (user.rewardPoints === undefined || user.rewardPoints === null) {
+        user.rewardPoints = 0;
+      }
+      
+      const currentPoints = user.rewardPoints || 0;
+      if (currentPoints !== expectedPoints) {
+        user.rewardPoints = expectedPoints;
+        await user.save();
+      }
+    }
 
     res.json({
       certificates,

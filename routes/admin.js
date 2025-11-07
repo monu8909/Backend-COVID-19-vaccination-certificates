@@ -1,5 +1,6 @@
 import express from 'express';
 import Certificate from '../models/Certificate.js';
+import User from '../models/User.js';
 import { authenticate, isAdmin } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -72,6 +73,10 @@ router.patch('/certificates/:id/verify', async (req, res) => {
       return res.status(404).json({ message: 'Certificate not found' });
     }
 
+    // Check if certificate is already verified to avoid duplicate rewards
+    const isAlreadyVerified = certificate.status === 'verified';
+    const pointsToAward = 100; // Award 100 points per verified certificate
+
     // Update certificate status to verified
     certificate.status = 'verified';
     certificate.verifiedBy = req.user._id;
@@ -79,6 +84,19 @@ router.patch('/certificates/:id/verify', async (req, res) => {
     certificate.rejectionReason = undefined; // Clear rejection reason if any
 
     await certificate.save();
+
+    // Award reward points to user if not already verified
+    if (!isAlreadyVerified) {
+      const user = await User.findById(certificate.userId);
+      if (user) {
+        // Ensure rewardPoints field exists
+        if (user.rewardPoints === undefined || user.rewardPoints === null) {
+          user.rewardPoints = 0;
+        }
+        user.rewardPoints = (user.rewardPoints || 0) + pointsToAward;
+        await user.save();
+      }
+    }
 
     res.json({
       message: 'Certificate verified successfully',
@@ -88,6 +106,7 @@ router.patch('/certificates/:id/verify', async (req, res) => {
         verifiedBy: certificate.verifiedBy,
         verifiedAt: certificate.verifiedAt,
       },
+      pointsAwarded: isAlreadyVerified ? 0 : pointsToAward,
     });
   } catch (error) {
     console.error('Error verifying certificate:', error);

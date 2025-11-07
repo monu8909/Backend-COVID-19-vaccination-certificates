@@ -26,6 +26,11 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    rewardPoints: {
+      type: Number,
+      default: 0, // Default reward points is 0
+      min: 0, // Points cannot be negative
+    },
   },
   {
     timestamps: true, // Automatically adds createdAt and updatedAt fields

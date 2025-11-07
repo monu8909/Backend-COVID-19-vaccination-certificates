@@ -45,6 +45,7 @@ router.post('/register', async (req, res) => {
         email: user.email,
         name: user.name,
         role: user.role,
+        rewardPoints: user.rewardPoints || 0,
       },
     });
   } catch (error) {
@@ -82,6 +83,12 @@ router.post('/login', async (req, res) => {
       { expiresIn: '7d' }
     );
 
+    // Ensure rewardPoints field exists, if not set it to 0
+    if (user.rewardPoints === undefined || user.rewardPoints === null) {
+      user.rewardPoints = 0;
+      await user.save();
+    }
+    
     res.json({
       message: 'Login successful',
       token,
@@ -90,6 +97,7 @@ router.post('/login', async (req, res) => {
         email: user.email,
         name: user.name,
         role: user.role,
+        rewardPoints: user.rewardPoints || 0,
       },
     });
   } catch (error) {
@@ -101,12 +109,22 @@ router.post('/login', async (req, res) => {
 // Get current user profile (protected route)
 router.get('/me', authenticate, async (req, res) => {
   try {
+    // Fetch fresh user data to get updated reward points
+    const user = await User.findById(req.user._id);
+    
+    // Ensure rewardPoints field exists, if not set it to 0
+    if (user.rewardPoints === undefined || user.rewardPoints === null) {
+      user.rewardPoints = 0;
+      await user.save();
+    }
+    
     res.json({
       user: {
-        id: req.user._id,
-        email: req.user.email,
-        name: req.user.name,
-        role: req.user.role,
+        id: user._id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        rewardPoints: user.rewardPoints || 0,
       },
     });
   } catch (error) {
